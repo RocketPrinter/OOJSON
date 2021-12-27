@@ -2,14 +2,25 @@
 
 namespace OOJSON;
 
-public record OOJSolverOptions(string nameProperty="ooj_name", string inheritProperty="ooj_inherit", bool throwOnInvalidOOJ = true);
+public record OOJSolverOptions(string nameProperty="ooj_name", string inheritProperty="ooj_inherit");
 
 public class OOJSolver
 {
-    record Document(string? name, List<string>? dependencies, JsonNode root);
+    class Document
+    {
+        public readonly JsonNode node;
+        public readonly string? name;
+        public List<JsonNode>? deps;
+        public bool visited; 
+
+        public Document(JsonNode node, OOJSolverOptions options)
+        {
+            this.node = node;
+            (node[options.nameProperty] as JsonValue)?.TryGetValue(out name);
+        }
+    }
 
     OOJSolverOptions options;
-    List<Document> docs = new();
 
     public OOJSolver(OOJSolverOptions? options=null)
     {
@@ -17,52 +28,47 @@ public class OOJSolver
     }
 
     /// <summary>
-    /// Add a JSONObject that is the root of a document to the solver.
+    /// Receives a collection of root nodes and solves all dependencies and merges
     /// </summary>
-    /// <param name="obj"></param>
-    /// <exception cref="ArgumentException"></exception>
-    public void AddRootJSONObject(JsonObject obj)
+    /// <param name=""></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public void Solve(ICollection<JsonNode> rootNodes)
     {
-        if (obj.Root != null) throw new ArgumentException("JsonObject is not root");
-
-        string? name = null;
-        List<string>? inheritance = null;
-        try
+        // make sure nodes are roots of trees
+        foreach (var node in rootNodes)
         {
-            name = obj[options.nameProperty]?.GetValue<string>();
-            inheritance = obj[options.inheritProperty]?.AsArray().Select(x => x!.GetValue<string>()).ToList();
-        }
-        catch
-        {
-           if (options.throwOnInvalidOOJ) throw;
+            if (obj.Root != null) throw new ArgumentException("JsonObject is not root");
         }
 
-        docs.Add(new(name, inheritance, obj));
-    }
+        // make dictionary
+        var docs = rootNodes.ToDictionary<JsonNode, JsonNode, Document>(node=>node,node=>new(node,options));
 
-    public IEnumerable<JsonNode> Solve()
-    {
-        // solve strings in dependencies
+        // solve names
+        foreach (var kvp in docs)
+        {
+            // the ugliest linq in existance
+            kvp.Value.deps = (kvp.Key[options.inheritProperty] as JsonArray)
+                ?.Select(x => { string? name = null; (x as JsonValue)?.TryGetValue(out name); return name; })
+                .Where(x => x != null)
+                .Select(x => docs.Where(y=>y.Value.name == x).Select(y=>y.Key).FirstOrDefault()! )
+                .Where(x => x != null)
+                .ToList();
+        }
 
         // topological sorting
         Stack<Document> docStack = new();
-        HashSet<Document> visited = new();
-        foreach (var doc in docs)
-                TopoSort(doc);
+        foreach (var kvp in docs)
+                TopoSort(kvp.Value);
 
         void TopoSort(Document doc)
         {
-            if (!visited.Contains(doc)) return;
-            visited.Add(doc);
+            if (doc.visited) return;
+            doc.visited = true;
 
-            foreach (string name in doc.dependencies ?? Enumerable.Empty<string>())
+            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonNode>())
             {
-                var child = docs.Find(x => x.name == name);
-                if (child != null)
-                    TopoSort(child);    
-                
-                if (options.throwOnInvalidOOJ)
-                    throw new Exception($"Cannot find OOJ with name {name}");
+                TopoSort(docs[dep]);
             }
 
             docStack.Push(doc);
