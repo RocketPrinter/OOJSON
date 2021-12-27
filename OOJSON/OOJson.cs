@@ -2,9 +2,9 @@
 
 namespace OOJSON;
 
-public record OOJSolverOptions(string nameProperty="ooj_name", string inheritProperty="ooj_inherit");
+public record OOJsonOptions(string nameProperty="ooj_name", string inheritProperty="ooj_inherit");
 
-public class OOJSolver
+public static class OOJson
 {
     class Document
     {
@@ -13,32 +13,27 @@ public class OOJSolver
         public List<JsonNode>? deps;
         public bool visited; 
 
-        public Document(JsonNode node, OOJSolverOptions options)
+        public Document(JsonNode node, OOJsonOptions options)
         {
             this.node = node;
             (node[options.nameProperty] as JsonValue)?.TryGetValue(out name);
         }
     }
 
-    OOJSolverOptions options;
-
-    public OOJSolver(OOJSolverOptions? options=null)
-    {
-        this.options = options ?? new();
-    }
-
     /// <summary>
-    /// Receives a collection of root nodes and solves all dependencies and merges
+    /// Mutates the nodes in the collection to solve all merges
     /// </summary>
     /// <param name=""></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public void Solve(ICollection<JsonNode> rootNodes)
+    public static void Solve(ICollection<JsonNode> rootNodes, OOJsonOptions? options = null)
     {
+        options ??= new();
+
         // make sure nodes are roots of trees
         foreach (var node in rootNodes)
         {
-            if (obj.Root != null) throw new ArgumentException("JsonObject is not root");
+            if (node.Root != null) throw new ArgumentException("JsonObject is not root");
         }
 
         // make dictionary
@@ -75,17 +70,13 @@ public class OOJSolver
         }
 
         // solve
-        List<JsonNode> result = new();
         foreach (var doc in docStack)
+            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonNode>())
+                SolveDep(doc.node, dep); 
+
+        void SolveDep(JsonNode node, JsonNode dep)
         {
-            result.Add(doc.root);
-
+            for (int i=0;i<dep.)
         }
-
-        void Apply(JsonNode node, JsonNode baseNode)
-        {
-
-        }
-        return result;
     }
 }
