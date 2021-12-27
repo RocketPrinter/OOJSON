@@ -8,9 +8,9 @@ public static class OOJson
 {
     class Document
     {
-        public readonly JsonNode node;
+        public readonly JsonObject node;
         public readonly string? name;
-        public List<JsonNode>? deps;
+        public List<JsonObject>? deps;
         public bool visited; 
 
         public Document(JsonNode node, OOJsonOptions options)
@@ -26,7 +26,7 @@ public static class OOJson
     /// <param name=""></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static void Solve(ICollection<JsonNode> rootNodes, OOJsonOptions? options = null)
+    public static void Solve(ICollection<JsonObject> rootNodes, OOJsonOptions? options = null)
     {
         options ??= new();
 
@@ -37,7 +37,7 @@ public static class OOJson
         }
 
         // make dictionary
-        var docs = rootNodes.ToDictionary<JsonNode, JsonNode, Document>(node=>node,node=>new(node,options));
+        var docs = rootNodes.ToDictionary<JsonObject, JsonObject, Document>(node=>node,node=>new(node,options));
 
         // solve names
         foreach (var kvp in docs)
@@ -61,7 +61,7 @@ public static class OOJson
             if (doc.visited) return;
             doc.visited = true;
 
-            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonNode>())
+            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonObject>())
             {
                 TopoSort(docs[dep]);
             }
@@ -71,12 +71,57 @@ public static class OOJson
 
         // solve
         foreach (var doc in docStack)
-            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonNode>())
-                SolveDep(doc.node, dep); 
+            foreach (var dep in doc.deps ?? Enumerable.Empty<JsonObject>())
+                SolveJsonObject(doc.node, dep); 
 
-        void SolveDep(JsonNode node, JsonNode dep)
+        void SolveJsonObject(JsonObject node, JsonObject dep)
         {
-            for (int i=0;i<dep.)
+            foreach (var depChild in dep)
+            {
+                if (depChild.Value == null) continue;
+
+                // nodeChild replaces depChild so no modifications are made
+                var nodeChild = node[depChild.Key];
+                if (nodeChild != null) continue;
+
+                // merge nodeChild and depChild
+                nodeChild = node["+" + depChild.Key];
+                if (nodeChild != null)
+                {
+                    switch (nodeChild)
+                    {
+                        case JsonObject obj1:
+                            if (depChild.Value is JsonObject obj2)
+                            {
+                                SolveJsonObject(obj1, obj2); // !!!
+                                break;
+                            }
+                            goto default;
+
+                        case JsonArray arr1:
+                            if (depChild.Value is JsonArray arr2)
+                            {
+                                var newArr = (JsonArray)arr2.Copy();
+                                node.Add(depChild.Key,newArr);
+                                foreach (var item in arr2)
+                                {
+                                    newArr.Add(item?.Copy());
+                                }
+                                break;
+                            }
+                            goto default;
+
+                        default: // something went wrong so we just copy depChild
+                            node.Add(depChild.Key,depChild.Value.Copy());
+                            break;
+                    }
+                    node.Remove("+" + depChild.Key);
+                    continue;
+                }
+
+                // node inherits a copy of depChild
+                node.Add(depChild.Key, depChild.Value.Copy());
+            }
         }
     }
 }
