@@ -33,7 +33,8 @@ public static class OOJson
         // make sure nodes are roots of trees
         foreach (var node in rootNodes)
         {
-            if (node.Root != null) throw new ArgumentException("JsonObject is not root");
+            if (node.Root != null && node.Root != node) 
+                throw new ArgumentException("JsonObject is not root");
         }
 
         // make dictionary
@@ -78,7 +79,7 @@ public static class OOJson
         {
             foreach ((string key,var depChild) in dep)
             {
-                if (depChild == null) continue;
+                if (depChild == null || key == options.nameProperty || key == options.inheritProperty) continue;
 
                 // 1) existing node replaces inherited node
                 {
