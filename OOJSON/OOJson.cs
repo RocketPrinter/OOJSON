@@ -76,51 +76,42 @@ public static class OOJson
 
         void SolveJsonObject(JsonObject node, JsonObject dep)
         {
-            foreach (var depChild in dep)
+            foreach ((string key,var depChild) in dep)
             {
-                if (depChild.Value == null) continue;
+                if (depChild == null) continue;
 
-                // nodeChild replaces depChild so no modifications are made
-                var nodeChild = node[depChild.Key];
-                if (nodeChild != null) continue;
-
-                // merge nodeChild and depChild
-                nodeChild = node["+" + depChild.Key];
-                if (nodeChild != null)
+                // 1) existing node replaces inherited node
                 {
-                    switch (nodeChild)
+                    var nodeChild = node[key];
+                    if (nodeChild != null) continue;
+                }
+
+                // copy depChild
+                var newNode = depChild.Copy();
+                node.Add(key, newNode);
+
+                // 2) inherited node but additive
+                string pluskey = "+" + key;
+                var plusChild = node[pluskey];
+                if (plusChild != null)
+                {
+                    if (plusChild is JsonObject plusChildObj && newNode is JsonObject newNodeObj)
                     {
-                        case JsonObject obj1:
-                            if (depChild.Value is JsonObject obj2)
-                            {
-                                SolveJsonObject(obj1, obj2); // !!!
-                                break;
-                            }
-                            goto default;
-
-                        case JsonArray arr1:
-                            if (depChild.Value is JsonArray arr2)
-                            {
-                                var newArr = (JsonArray)arr2.Copy();
-                                node.Add(depChild.Key,newArr);
-                                foreach (var item in arr2)
-                                {
-                                    newArr.Add(item?.Copy());
-                                }
-                                break;
-                            }
-                            goto default;
-
-                        default: // something went wrong so we just copy depChild
-                            node.Add(depChild.Key,depChild.Value.Copy());
-                            break;
+                        SolveJsonObject(newNodeObj, plusChildObj);
                     }
-                    node.Remove("+" + depChild.Key);
+                    else if (plusChild is JsonArray plusChildArray && newNode is JsonArray newNodeArray)
+                    {
+                        foreach (var item in plusChildArray)
+                        {
+                            newNodeArray.Add(item!.Copy());
+                        }
+                    }
+
+                    node.Remove(pluskey);
                     continue;
                 }
 
-                // node inherits a copy of depChild
-                node.Add(depChild.Key, depChild.Value.Copy());
+                // 3) inherit depChild (already done)
             }
         }
     }
