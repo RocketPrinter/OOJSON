@@ -13,7 +13,7 @@ public static class OOJson
         public List<JsonObject>? deps;
         public bool visited; 
 
-        public Document(JsonNode node, OOJsonOptions options)
+        public Document(JsonObject node, OOJsonOptions options)
         {
             this.node = node;
             (node[options.nameProperty] as JsonValue)?.TryGetValue(out name);
