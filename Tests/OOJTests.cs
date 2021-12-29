@@ -30,20 +30,32 @@ public class OOJTests
 
         for (int i=0;i<list.Count;i++)
         {
-            string newJson = list[i].ToJsonString();
-            Assert.True(newJson == outputJson[i], $"{newJson}        {outputJson}");
+            Assert.Equal(outputJson[i], list[i].ToJsonString());
         }
-    }
-
-    [Fact]
-    public void TestInvalidOOJ()
-    {
-
     }
 
     [Fact]
     public void TestComplexOOJ()
     {
+        string[] inputJson =
+        {
+            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\"}}}",
+            "{\"inherit\":\"base\",\"+obj\":{\"+obj2\":{\"value3\":\"jkl\"}}}"
+        };
 
+        string[] outputJson =
+        {
+            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\"}}}",
+            "{\"inherit\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"jkl\"}}}"
+        };
+
+        var list = inputJson.Select(s => (JsonObject)JsonNode.Parse(s)!).ToList();
+
+        OOJson.Solve(list, new OOJsonOptions("name", "inherit"));
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            Assert.Equal(outputJson[i], list[i].ToJsonString());
+        }
     }
 }

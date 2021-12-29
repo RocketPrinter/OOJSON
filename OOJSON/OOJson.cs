@@ -16,7 +16,7 @@ public static class OOJson
         public Document(JsonObject node, OOJsonOptions options)
         {
             this.node = node;
-            (node[options.nameProperty] as JsonValue)?.TryGetValue(out name);
+            name = (node[options.nameProperty] as JsonValue)?.GetRawValue();
         }
     }
 
@@ -44,12 +44,15 @@ public static class OOJson
         foreach (var kvp in docs)
         {
             // the ugliest linq in existance
-            kvp.Value.deps = (kvp.Key[options.inheritProperty] as JsonArray)
-                ?.Select(x => { string? name = null; (x as JsonValue)?.TryGetValue(out name); return name; })
-                .Where(x => x != null)
-                .Select(x => docs.Where(y=>y.Value.name == x).Select(y=>y.Key).FirstOrDefault()! )
-                .Where(x => x != null)
-                .ToList();
+            kvp.Value.deps = (kvp.Key[options.inheritProperty] switch
+            {
+                JsonArray arr => arr.Select(x => (x as JsonValue)?.GetRawValue()).Where(x=>x!=null),
+                JsonValue val => new[] { val.GetRawValue() },
+                _ => Enumerable.Empty<string>()
+            })
+            .Select(x => docs.Where(y => y.Value.name == x).Select(y => y.Key).FirstOrDefault()!)
+            .Where(x => x != null)
+            .ToList();
         }
 
         // topological sorting
@@ -73,7 +76,10 @@ public static class OOJson
         // solve
         foreach (var doc in docStack)
             foreach (var dep in doc.deps ?? Enumerable.Empty<JsonObject>())
+            {
                 SolveJsonObject(doc.node, dep); 
+
+            }
 
         void SolveJsonObject(JsonObject node, JsonObject dep)
         {
@@ -82,10 +88,8 @@ public static class OOJson
                 if (depChild == null || key == options.nameProperty || key == options.inheritProperty) continue;
 
                 // 1) existing node replaces inherited node
-                {
-                    var nodeChild = node[key];
-                    if (nodeChild != null) continue;
-                }
+                if (node[key] != null) 
+                    continue;
 
                 // copy depChild
                 var newNode = depChild.Copy();
