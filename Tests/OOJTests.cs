@@ -8,7 +8,7 @@ namespace Tests;
 public class OOJTests
 {
     [Fact]
-    public void TestValidOOJ()
+    public void TestOOJ()
     {
         string[] inputJson = 
         { 
@@ -39,14 +39,14 @@ public class OOJTests
     {
         string[] inputJson =
         {
-            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\"}}}",
-            "{\"inherit\":\"base\",\"+obj\":{\"+obj2\":{\"value3\":\"jkl\"}}}"
+            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\",\"arr\":[\"1\"]}}}",
+            "{\"inherit\":\"base\",\"+obj\":{\"+obj2\":{\"value3\":\"jkl\",\"+arr\":[\"2\"]}}}"
         };
 
         string[] outputJson =
         {
-            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\"}}}",
-            "{\"inherit\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"jkl\"}}}"
+            "{\"name\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"value3\":\"ghi\",\"arr\":[\"1\"]}}}",
+            "{\"inherit\":\"base\",\"obj\":{\"value1\":\"abc\",\"obj2\":{\"value2\":\"def\",\"arr\":[\"1\",\"2\"],\"value3\":\"jkl\"}}}"
         };
 
         var list = inputJson.Select(s => (JsonObject)JsonNode.Parse(s)!).ToList();

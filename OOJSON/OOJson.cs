@@ -75,48 +75,75 @@ public static class OOJson
 
         // solve
         foreach (var doc in docStack)
+        {
             foreach (var dep in doc.deps ?? Enumerable.Empty<JsonObject>())
             {
-                SolveJsonObject(doc.node, dep); 
-
-            }
-
-        void SolveJsonObject(JsonObject node, JsonObject dep)
-        {
-            foreach ((string key,var depChild) in dep)
-            {
-                if (depChild == null || key == options.nameProperty || key == options.inheritProperty) continue;
-
-                // 1) existing node replaces inherited node
-                if (node[key] != null) 
-                    continue;
-
-                // copy depChild
-                var newNode = depChild.Copy();
-                node.Add(key, newNode);
-
-                // 2) inherited node but additive
-                string pluskey = "+" + key;
-                var plusChild = node[pluskey];
-                if (plusChild != null)
+                foreach ((string key, JsonNode? depChild) in dep)
                 {
-                    if (plusChild is JsonObject plusChildObj && newNode is JsonObject newNodeObj)
-                    {
-                        SolveJsonObject(newNodeObj, plusChildObj);
-                    }
-                    else if (plusChild is JsonArray plusChildArray && newNode is JsonArray newNodeArray)
-                    {
-                        foreach (var item in plusChildArray)
-                        {
-                            newNodeArray.Add(item!.Copy());
-                        }
-                    }
+                    // we ignore those
+                    if (key == options.nameProperty || key == options.inheritProperty)
+                        continue;
 
-                    node.Remove(pluskey);
-                    continue;
+                    // existing node replaces inherited node
+                    if (doc.node[key] != null)
+                        continue;
+
+                    // copy inherited node
+                    var newNode = depChild!.Copy();
+                    doc.node.Add(key, newNode);
+
+                    // if there's a node with +key we merge it
+                    var plusNode = doc.node["+" + key];
+                    if (plusNode != null)
+                    {
+                        RecursiveMerge(newNode, plusNode);
+
+                        // delete +key node
+                        doc.node.Remove("+" + key);
+                    }
                 }
 
-                // 3) inherit depChild (already done)
+            }
+        }
+
+        void RecursiveMerge(JsonNode node, JsonNode plusNode)
+        {
+            if (node.GetType() != plusNode.GetType()) // missmatching type)
+                return;
+
+            switch (node)
+            {
+                case JsonObject nodeObj:
+                    var plusObj = (JsonObject)plusNode;
+                    foreach ((string key, JsonNode? plusChild) in plusObj)
+                    {
+                        if (key.Length == 0) continue;
+
+                        var child = nodeObj[key[1..]];
+
+                       if (child != null)
+                        {
+                            RecursiveMerge(child!, plusChild!);
+                            continue;
+                        }
+
+                        child = nodeObj[key];
+
+                        if (child != null) 
+                            nodeObj.Remove(key);
+
+                        nodeObj.Add(key, plusChild!.Copy());
+                    }
+                    break;
+
+                case JsonArray nodeArr:
+                    var plusArr = (JsonArray)plusNode;
+                    foreach (var child in plusArr)
+                        nodeArr.Add(child!.Copy());
+                    break;
+             
+                default:
+                    break;
             }
         }
     }
